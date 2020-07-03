@@ -61,9 +61,9 @@ def quick_mean(gender, weight_class, units):
         profile = male_data.loc[male_data['WeightClassKg'] == str(weight_class)]
     elif gender == 'f':
         profile = female_data.loc[female_data['WeightClassKg'] == str(weight_class)]
-    if units == 'lb':
+    if units == 'lbs':
         profile = profile[['Squat', 'Bench', 'Deadlift', 'Total']] * 2.205
-    elif units == 'kg':
+    elif units == 'kgs':
         profile = profile[['Squat', 'Bench', 'Deadlift', 'Total']]
 
     mean = profile.mean()
