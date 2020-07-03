@@ -3,6 +3,12 @@ from urllib.request import urlretrieve
 import os
 import pandas as pd
 import pyinputplus as pyip
+import matplotlib.pyplot as plt
+
+'''
+DATA is skewed as there are multiple record for each lifter
+ADD option to sort by age group
+'''
 
 # download openpowerlifting data (~77mb) and store in this .py file's directory
 url = 'https://github.com/sstangl/openpowerlifting-static/raw/gh-pages/openpowerlifting-latest.zip'
@@ -13,7 +19,7 @@ if not os.path.isfile(filename):  # checks to see if the .zip has already been d
 # open .zip archive and read the .csv, taking only certain columns of interest
 zf = ZipFile(filename)
 df = pd.read_csv(zf.open('openpowerlifting-2020-06-20/openpowerlifting-2020-06-20.csv'),
-                 usecols=[1, 3, 9, 14, 19, 24, 25, 34])
+                 usecols=[0, 1, 3, 9, 14, 19, 24, 25, 34])
 df = df.rename(columns={'Best3SquatKg': 'Squat', 'Best3BenchKg': 'Bench',
                         'Best3DeadliftKg': 'Deadlift', 'TotalKg': 'Total'})
 
@@ -47,3 +53,20 @@ def calculate_mean():
         profile = profile[['Squat', 'Bench', 'Deadlift', 'Total']]
 
     print(profile.mean())
+
+
+def quick_mean(gender, weight_class, units):
+    profile = None
+    if gender == 'm':
+        profile = male_data.loc[male_data['WeightClassKg'] == str(weight_class)]
+    elif gender == 'f':
+        profile = female_data.loc[female_data['WeightClassKg'] == str(weight_class)]
+    if units == 'lb':
+        profile = profile[['Squat', 'Bench', 'Deadlift', 'Total']] * 2.205
+    elif units == 'kg':
+        profile = profile[['Squat', 'Bench', 'Deadlift', 'Total']]
+
+    mean = profile.mean()
+    array = mean.to_numpy()
+    return array
+
