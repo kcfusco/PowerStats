@@ -1,72 +1,62 @@
 from zipfile import ZipFile
 from urllib.request import urlretrieve
-import os
+from urllib import error
 import pandas as pd
-import pyinputplus as pyip
-import matplotlib.pyplot as plt
-
-'''
-DATA is skewed as there are multiple record for each lifter
-ADD option to sort by age group
-'''
-
-# download openpowerlifting data (~77mb) and store in this .py file's directory
-url = 'https://github.com/sstangl/openpowerlifting-static/raw/gh-pages/openpowerlifting-latest.zip'
-filename = 'openpowerlifting-latest.zip'
-if not os.path.isfile(filename):  # checks to see if the .zip has already been downloaded
-    urlretrieve(url, filename)
-
-# open .zip archive and read the .csv, taking only certain columns of interest
-zf = ZipFile(filename)
-df = pd.read_csv(zf.open('openpowerlifting-2020-06-20/openpowerlifting-2020-06-20.csv'),
-                 usecols=[0, 1, 3, 9, 14, 19, 24, 25, 34])
-df = df.rename(columns={'Best3SquatKg': 'Squat', 'Best3BenchKg': 'Bench',
-                        'Best3DeadliftKg': 'Deadlift', 'TotalKg': 'Total'})
-
-# filter for male and female data for raw (no wraps) and IPF affiliated meets
-male_data = df.loc[(df['Sex'] == 'M') & (df['Equipment'] == 'Raw') & (df['ParentFederation'] == 'IPF')]
-female_data = df.loc[(df['Sex'] == 'F') & (df['Equipment'] == 'Raw') & (df['ParentFederation'] == 'IPF')]
-
-# possible choices for pyinputs.inputChoice
-genders = ['m', 'f']
-male_classes = ['53', '59', '66', '74', '83', '93', '105', '120', '120+']
-female_classes = ['43', '47', '52', '57', '63', '72', '84', '84+']
+import urllib
+import re
+import os
 
 
-def calculate_mean():
-    profile = None
-    print('Gender?')
-    gender = pyip.inputChoice(genders)
-    if gender == 'm':
-        print('Weight class?')
-        weight_class = pyip.inputChoice(male_classes)
-        profile = male_data.loc[male_data['WeightClassKg'] == str(weight_class)]
-    elif gender == 'f':
-        print('Weight class?')
-        weight_class = pyip.inputChoice(female_classes)
-        profile = female_data.loc[female_data['WeightClassKg'] == str(weight_class)]
-
-    units = pyip.inputYesNo('Data in Lbs?')
-    if units == 'yes':
-        profile = profile[['Squat', 'Bench', 'Deadlift', 'Total']] * 2.205
-    elif units == 'no':
-        profile = profile[['Squat', 'Bench', 'Deadlift', 'Total']]
-
-    print(profile.mean())
+def download_zip():
+    """download openpowerlifting data (~77mb) and store in this .py file's directory (default path)"""
+    try:
+        url = 'https://github.com/sstangl/openpowerlifting-static/raw/gh-pages/openpowerlifting-latest.zip'
+        filename = 'openpowerlifting-latest.zip'
+        if not os.path.isfile(filename):
+            urlretrieve(url, filename)
+    except urllib.error.HTTPError:
+        print('Error downloading data: bad URL')
 
 
-def quick_mean(gender, weight_class, units):
+def quick_mean(gender, weight_class):
     profile = None
     if gender == 'm':
         profile = male_data.loc[male_data['WeightClassKg'] == str(weight_class)]
     elif gender == 'f':
         profile = female_data.loc[female_data['WeightClassKg'] == str(weight_class)]
-    if units == 'lbs':
-        profile = profile[['Squat', 'Bench', 'Deadlift', 'Total']] * 2.205
-    elif units == 'kgs':
-        profile = profile[['Squat', 'Bench', 'Deadlift', 'Total']]
+    profile = profile.drop(['WeightClassKg'], axis=1)
+    mean = profile.describe()
+    return mean
 
-    mean = profile.mean()
-    array = mean.to_numpy()
-    return array
+
+def name_lookup(name):
+    lifter_data = male_data.loc[male_data['Name'] == str(name)]
+    print(lifter_data)
+
+
+download_zip()
+zf = ZipFile('openpowerlifting-latest.zip')
+zip_contents = zf.namelist()
+df = pd.read_csv(zf.open(zip_contents[-1]),
+                 usecols=['Name', 'Sex', 'Event', 'Equipment', 'Division', 'BodyweightKg', 'WeightClassKg',
+                          'Best3SquatKg', 'Best3BenchKg', 'Best3DeadliftKg', 'TotalKg', 'ParentFederation'],
+                 dtype={'Name': 'string', 'Sex': 'category', 'Equipment': 'category', 'ParentFederation': 'string'})
+# df = df.rename(columns={'Best3SquatKg': 'Squat', 'Best3BenchKg': 'Bench',
+# 'Best3DeadliftKg': 'Deadlift', 'TotalKg': 'Total'})
+
+ipf_sbd_raw = df.copy().loc[(df['Event'] == 'SBD') & (df['Equipment'] == 'Raw') & (df['ParentFederation'] == 'IPF')]
+ipf_sbd_raw = ipf_sbd_raw.drop(['Event', 'Equipment', 'ParentFederation'], axis=1)
+ipf_sbd_raw = ipf_sbd_raw.dropna(axis=0, subset=['Division', 'Best3SquatKg', 'Best3BenchKg', 'Best3DeadliftKg'])
+
+# create a DF from a dict. which takes each ipf_sbd_raw column name and fills
+summed_totals = pd.DataFrame({'TotalKg': ipf_sbd_raw[['Best3SquatKg', 'Best3BenchKg', 'Best3DeadliftKg']].sum(axis=1)})
+ipf_sbd_raw['TotalKg'] = summed_totals
+
+male_data = ipf_sbd_raw.loc[ipf_sbd_raw['Sex'] == 'M']
+male_data = male_data.drop(['Sex'], axis=1)
+female_data = ipf_sbd_raw.loc[ipf_sbd_raw['Sex'] == 'F']
+female_data = female_data.drop(['Sex'], axis=1)
+
+
+
 
