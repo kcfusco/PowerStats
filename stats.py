@@ -1,22 +1,24 @@
 from zipfile import ZipFile
 from urllib.request import urlretrieve
-from urllib import error
-import pandas as pd
-import urllib
+import urllib.error
+#import pandas as pd
+#import urllib
 import os
-import seaborn as sns
-import matplotlib.pyplot as plt
+#import seaborn as sns
+#import matplotlib.pyplot as plt
+import shutil
 
 
 def download_zip():
     """download openpowerlifting data (~77mb) and store in this .py file's directory (default path)"""
     try:
-        url = 'https://github.com/sstangl/openpowerlifting-static/raw/gh-pages/openpowerlifting-latest.zip'
-        filename = 'openpowerlifting-latest.zip'
+        url = 'https://openpowerlifting.gitlab.io/opl-csv/files/openpowerlifting-latest.zip'
+        filename = url.split("/")[-1]
         if not os.path.isfile(filename):
             urlretrieve(url, filename)
     except urllib.error.HTTPError:
         print('Error downloading data: bad URL')
+    return filename
 
 
 def summary_stats(gender, weight_class):
@@ -62,9 +64,12 @@ def name_lookup(name):
     print(lifter_data)
 
 
-download_zip()
-zf = ZipFile('openpowerlifting-latest.zip')
-zip_contents = zf.namelist()
+zip_data = download_zip()
+#zf = ZipFile('openpowerlifting-latest.zip')
+#shutil.unpack_archive(zip_data)
+for files in os.walk(__file__):
+    print(files)
+"""zip_contents = zf.namelist()
 df = pd.read_csv(zf.open(zip_contents[-1]),
                  usecols=['Name', 'Sex', 'Event', 'Equipment', 'Division', 'BodyweightKg', 'WeightClassKg',
                           'Best3SquatKg', 'Best3BenchKg', 'Best3DeadliftKg', 'TotalKg', 'ParentFederation'],
@@ -82,4 +87,4 @@ male_data = ipf_sbd_raw.loc[ipf_sbd_raw['Sex'] == 'M']
 female_data = ipf_sbd_raw.loc[ipf_sbd_raw['Sex'] == 'F']
 
 male_data = male_data.drop(['Sex'], axis=1)
-female_data = female_data.drop(['Sex'], axis=1)
+female_data = female_data.drop(['Sex'], axis=1)"""
