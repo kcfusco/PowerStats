@@ -1,24 +1,52 @@
 from zipfile import ZipFile
 from urllib.request import urlretrieve
 import urllib.error
-#import pandas as pd
+import pandas as pd
 #import urllib
 import os
 #import seaborn as sns
 #import matplotlib.pyplot as plt
 import shutil
 
+CWD = os.path.dirname(os.path.realpath(__file__))
+CSV = ""
+
+def retrieve_data():
+    global CSV
+
+    dir_contents = os.listdir(CWD)
+    print(dir_contents)
+    if not any ("powerlifting" in folder for folder in dir_contents):
+        print("flag1")
+        download_zip()
+    else:
+        for index, item in enumerate(dir_contents):
+            if "openpowerlifting" in item:
+                CSV = os.path.join(CWD,item)
 
 def download_zip():
+    global CSV
     """download openpowerlifting data (~77mb) and store in this .py file's directory (default path)"""
+    #if zip file not already in 
     try:
         url = 'https://openpowerlifting.gitlab.io/opl-csv/files/openpowerlifting-latest.zip'
         filename = url.split("/")[-1]
-        if not os.path.isfile(filename):
-            urlretrieve(url, filename)
+        urlretrieve(url,filename)
+        print("Downloading openpowerlifting data...")
+        #shutil.unpack_archive(filename)
+        with ZipFile(filename, 'r') as zip_ref:
+            for member in zip_ref.namelist():
+                file = os.path.basename(member)
+                if ".csv" in member:
+                    source = zip_ref.open(member)
+                    target = open(os.path.join(CWD, file), "wb")
+                    CSV = target
+                    with source, target:
+                        shutil.copyfileobj(source, target)
+        os.remove(filename)
+        print("Data downloaded and unzipped")
     except urllib.error.HTTPError:
         print('Error downloading data: bad URL')
-    return filename
 
 
 def summary_stats(gender, weight_class):
@@ -64,17 +92,11 @@ def name_lookup(name):
     print(lifter_data)
 
 
-zip_data = download_zip()
-#zf = ZipFile('openpowerlifting-latest.zip')
-#shutil.unpack_archive(zip_data)
-for files in os.walk(__file__):
-    print(files)
-"""zip_contents = zf.namelist()
-df = pd.read_csv(zf.open(zip_contents[-1]),
-                 usecols=['Name', 'Sex', 'Event', 'Equipment', 'Division', 'BodyweightKg', 'WeightClassKg',
-                          'Best3SquatKg', 'Best3BenchKg', 'Best3DeadliftKg', 'TotalKg', 'ParentFederation'],
-                 dtype={'Name': 'string', 'Sex': 'category', 'Equipment': 'category', 'ParentFederation': 'string'})
+retrieve_data()
 
+
+df = pd.read_csv(CSV)
+"""
 ipf_sbd_raw = df.copy().loc[(df['Event'] == 'SBD') & (df['Equipment'] == 'Raw') & (df['ParentFederation'] == 'IPF')]
 ipf_sbd_raw = ipf_sbd_raw.drop(['Event', 'Equipment', 'ParentFederation'], axis=1) \
     .dropna(axis=0, subset=['Division', 'Best3SquatKg', 'Best3BenchKg', 'Best3DeadliftKg'])
@@ -87,4 +109,5 @@ male_data = ipf_sbd_raw.loc[ipf_sbd_raw['Sex'] == 'M']
 female_data = ipf_sbd_raw.loc[ipf_sbd_raw['Sex'] == 'F']
 
 male_data = male_data.drop(['Sex'], axis=1)
-female_data = female_data.drop(['Sex'], axis=1)"""
+female_data = female_data.drop(['Sex'], axis=1)
+"""
